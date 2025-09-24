@@ -1,0 +1,39 @@
+version: '3.8'
+
+services:
+  # Production service
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: production
+    ports:
+      - "80:80"
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=production
+      # Override for container networking if needed
+      # - VITE_API_BASE_URL=http://host.docker.internal:5000
+      # - VITE_API_TOKEN=http://host.docker.internal:5002
+
+  # Development service (optional)
+  app-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    ports:
+      - "5173:5173"
+    volumes:
+      - .:/app
+      - /app/node_modules
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=development
+      # For development, you might want to use host networking
+      # - VITE_API_BASE_URL=http://host.docker.internal:5000
+      # - VITE_API_TOKEN=http://host.docker.internal:5002
+    profiles:
+      - dev

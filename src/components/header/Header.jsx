@@ -55,6 +55,7 @@ function Header() {
       });
 
       const data = await response.json();
+      console.log("Respuesta de login:", data);
 
       if (!response.ok) {
         throw new Error(data.message || "Error en la autenticación");

@@ -68,13 +68,14 @@ function RegistroPage() {
           }),
         });
 
-        const data = await response.json();
+        const data = await response.json();       
 
         if (!response.ok) {
-          if (data.error === 'Email already exists') {
+          
+          if (data.mensaje === 'Este email ya esta registrado') {
             throw new Error('Este email ya está registrado');
           } else {
-            throw new Error(data.message || 'Error en el registro');
+            throw new Error(data.mensaje || 'Error en el registro');
           }
         }
 

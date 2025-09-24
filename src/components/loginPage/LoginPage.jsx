@@ -81,6 +81,8 @@ function LoginPage() {
         }
 
         const data = await response.json();
+
+        console.log("Respuesta de login:", data);
        
 
         // Guardar token y datos de usuario
