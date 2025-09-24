@@ -58,7 +58,11 @@ function RegistroPage() {
       setErrors({});
       
       try {
-        const response = await fetch(`${import.meta.env.VITE_API_TOKEN}/register`, {
+        const apiBase = import.meta.env.VITE_API_TOKEN;
+        if (!apiBase) {
+          throw new Error("Variable VITE_API_TOKEN no configurada");
+        }
+        const response = await fetch(`${apiBase}/register`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -67,28 +71,18 @@ function RegistroPage() {
             password: formData.password
           }),
         });
-
-        const data = await response.json();
-
-        if (!response.ok) {
-          if (data.error === 'Email already exists') {
-            throw new Error('Este email ya está registrado');
-          } else {
-            throw new Error(data.message || 'Error en el registro');
-          }
+        const rawText = await response.text();
+        let data = {};
+        if (rawText) {
+          try { data = JSON.parse(rawText); } catch { console.warn('Respuesta no JSON:', rawText); }
         }
-
-        navigate("/login", { 
-          state: { 
-            registrationSuccess: true,
-            email: formData.email
-          } 
-        });
-        
+        if (!response.ok) {
+            const msg = data.error || data.mensaje || rawText || 'Error en el registro';
+            throw new Error(msg);
+        }
+        navigate("/login", { state: { registrationSuccess: true, email: formData.email } });
       } catch (error) {
-        setErrors({ 
-          submit: error.message || "Error al registrar. Inténtalo nuevamente." 
-        });
+        setErrors({ submit: error.message || "Error al registrar. Inténtalo nuevamente." });
       } finally {
         setIsSubmitting(false);
       }
