@@ -58,7 +58,11 @@ function RegistroPage() {
       setErrors({});
       
       try {
-        const response = await fetch(`${import.meta.env.VITE_API_TOKEN}/register`, {
+        const apiBase = import.meta.env.VITE_API_TOKEN;
+        if (!apiBase) {
+          throw new Error("Variable VITE_API_TOKEN no configurada");
+        }
+        const response = await fetch(`${apiBase}/register`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -67,6 +71,7 @@ function RegistroPage() {
             password: formData.password
           }),
         });
+
 
         const data = await response.json();       
 
@@ -77,19 +82,11 @@ function RegistroPage() {
           } else {
             throw new Error(data.mensaje || 'Error en el registro');
           }
-        }
 
-        navigate("/login", { 
-          state: { 
-            registrationSuccess: true,
-            email: formData.email
-          } 
-        });
-        
+        }
+        navigate("/login", { state: { registrationSuccess: true, email: formData.email } });
       } catch (error) {
-        setErrors({ 
-          submit: error.message || "Error al registrar. Inténtalo nuevamente." 
-        });
+        setErrors({ submit: error.message || "Error al registrar. Inténtalo nuevamente." });
       } finally {
         setIsSubmitting(false);
       }
