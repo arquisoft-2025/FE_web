@@ -71,14 +71,18 @@ function RegistroPage() {
             password: formData.password
           }),
         });
-        const rawText = await response.text();
-        let data = {};
-        if (rawText) {
-          try { data = JSON.parse(rawText); } catch { console.warn('Respuesta no JSON:', rawText); }
-        }
+
+
+        const data = await response.json();       
+
         if (!response.ok) {
-            const msg = data.error || data.mensaje || rawText || 'Error en el registro';
-            throw new Error(msg);
+          
+          if (data.mensaje === 'Este email ya esta registrado') {
+            throw new Error('Este email ya está registrado');
+          } else {
+            throw new Error(data.mensaje || 'Error en el registro');
+          }
+
         }
         navigate("/login", { state: { registrationSuccess: true, email: formData.email } });
       } catch (error) {
