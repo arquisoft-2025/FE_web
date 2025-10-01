@@ -15,7 +15,7 @@ const useCart = () => {
 
   const fetchCart = async () => {
     try {
-      const response = await fetch('http://localhost:5003/cart', {
+      const response = await fetch(`${import.meta.env.VITE_API_SHOPPING_CART}/cart`, {
         method: 'GET',
         headers: getAuthHeader()
       });
@@ -31,7 +31,7 @@ const useCart = () => {
 
   const addToCart = async (product) => {
   try {
-    const response = await fetch('http://localhost:5003/cart', {
+    const response = await fetch(`${import.meta.env.VITE_API_SHOPPING_CART}/cart`, {
       method: 'POST',
       headers: getAuthHeader(),
       body: JSON.stringify({
@@ -55,7 +55,7 @@ const useCart = () => {
 
   const removeFromCart = async (cartItemId) => {
     try {
-      const response = await fetch(`http://localhost:5003/cart/${cartItemId}`, {
+      const response = await fetch(`${import.meta.env.VITE_API_SHOPPING_CART}/cart/${cartItemId}`, {
         method: 'DELETE',
         headers: getAuthHeader()
       });
@@ -69,7 +69,7 @@ const useCart = () => {
   };
   const clearCart = async () => {
   try {
-    const response = await fetch('http://localhost:5003/cart/clear-all', {
+    const response = await fetch(`${import.meta.env.VITE_API_SHOPPING_CART}/cart/clear-all`, {
       method: 'DELETE',
       headers: getAuthHeader()
     });
@@ -91,7 +91,7 @@ const useCart = () => {
       
       for (const item of cart) {
         const response = await fetch(
-          `http://localhost:5003/cart/${item._id}/claim`, 
+          `${import.meta.env.VITE_API_SHOPPING_CART}/cart/${item._id}/claim`, 
           {
             method: 'POST',
             headers: getAuthHeader()

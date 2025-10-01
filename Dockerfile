@@ -1,18 +1,20 @@
+# Dockerfile para desarrollo con Vite
 FROM node:18-alpine
 
+# Set working directory
 WORKDIR /app
 
-# Copiar package.json primero (para cache de Docker)
-COPY package.json package-lock.json* ./
+# Copy package files
+COPY package*.json ./
 
-# Instalar dependencias
-RUN npm install
+# Install all dependencies (including devDependencies)
+RUN npm ci
 
-# Copiar el código fuente
+# Copy source code
 COPY . .
 
-# Exponer puerto de Vite (normalmente 5173)
+# Expose Vite development server port
 EXPOSE 5173
 
-# Comando para desarrollo
+# Start development server with hot reload
 CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0"]
