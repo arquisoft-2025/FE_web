@@ -37,6 +37,11 @@
       "static/chunks/main.js",
       "static/chunks/pages/donaciones.js"
     ],
+    "/donar": [
+      "static/chunks/webpack.js",
+      "static/chunks/main.js",
+      "static/chunks/pages/donar.js"
+    ],
     "/login": [
       "static/chunks/webpack.js",
       "static/chunks/main.js",
