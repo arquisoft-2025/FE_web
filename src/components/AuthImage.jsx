@@ -17,10 +17,12 @@ const AuthImage = ({ filename, alt, ...props }) => {
       }
       
       const token = localStorage.getItem('authToken') || sessionStorage.getItem('authToken');
+      console.log('Auth token:', token);  
+      console.log('Loading image for filename:', filename);
       if (!token) return;
       
       try {
-        const response = await fetch(`http://localhost:5001/proxy-image/${filename}`, {
+  const response = await fetch(`${process.env.NEXT_PUBLIC_VITE_API_BASE_URL_IMAGE}/proxy-image/${filename}`, {
           headers: {
             'Authorization': `Bearer ${token}`
           }

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { FaTimes, FaSpinner, FaTrash } from 'react-icons/fa';
 import CartItem from './CartItem'; 
-import './cart.css';
+// styles moved to pages/_app.jsx
 
 const Cart = ({ cart, onClose, onRemove, onClaim, onClearCart, isClaiming }) => {
   const [isClearing, setIsClearing] = useState(false);

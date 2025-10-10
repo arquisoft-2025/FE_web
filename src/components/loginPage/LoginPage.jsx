@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from "react";
 import { FaSignInAlt, FaLock, FaEnvelope, FaEye, FaEyeSlash } from "react-icons/fa";
-import { Link, useNavigate, useLocation } from "react-router-dom";
-import "./LoginPage.css";
-import { ParticlesBackground } from "./ParticlesBackground";
+import Link from 'next/link'
+import { useRouter } from 'next/router'
+// styles moved to pages/_app.jsx
+import dynamic from 'next/dynamic'
+const ParticlesBackground = dynamic(() => import('./ParticlesBackground'), { ssr: false })
 
 function LoginPage() {
   const [formData, setFormData] = useState({
@@ -13,21 +15,21 @@ function LoginPage() {
   const [errors, setErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const navigate = useNavigate();
-  const location = useLocation();
+  const router = useRouter();
+  const { query } = router;
 
   // Verificar sesión existente al cargar
   useEffect(() => {
     const token = localStorage.getItem('authToken') || sessionStorage.getItem('authToken');
     if (token) {
-      navigate('/dashboard', { replace: true });
+      router.replace('/dashboard')
     }
 
-    // Autocompletar email si viene del registro
-    if (location.state?.email) {
-      setFormData(prev => ({ ...prev, email: location.state.email }));
+    // Autocompletar email si viene del registro (en Next pasamos por query)
+    if (query?.email) {
+      setFormData(prev => ({ ...prev, email: query.email }));
     }
-  }, [navigate, location.state]);
+  }, [query, router]);
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -64,7 +66,7 @@ function LoginPage() {
       setErrors({});
       
       try {
-        const response = await fetch(`${import.meta.env.VITE_API_TOKEN}/login`, {
+  const response = await fetch(`${process.env.NEXT_PUBLIC_VITE_API_TOKEN}/login`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -81,6 +83,8 @@ function LoginPage() {
         }
 
         const data = await response.json();
+
+        console.log("Respuesta de login:", data);
        
 
         // Guardar token y datos de usuario
@@ -102,7 +106,7 @@ function LoginPage() {
         }
 
         // Redirigir al dashboard
-        navigate('/dashboard', { replace: true });
+  router.replace('/dashboard')
 
       } catch (error) {
         console.error("Error en el login:", error);
@@ -126,8 +130,8 @@ function LoginPage() {
   };
 
   // Mostrar mensaje de éxito si viene del registro
-  const registrationSuccess = location.state?.registrationSuccess;
-  const registeredEmail = location.state?.email;
+  const registrationSuccess = query?.registrationSuccess;
+  const registeredEmail = query?.email;
 
   return (
     <div className="login-container">
@@ -204,7 +208,7 @@ function LoginPage() {
               <span>Recordar mi sesión</span>
             </label>
             
-            <Link to="/recuperar-contrasena" className="forgot-password">
+            <Link href="/recuperar-contrasena" className="forgot-password">
               ¿Olvidaste tu contraseña?
             </Link>
           </div>
@@ -226,7 +230,7 @@ function LoginPage() {
         </form>
         
         <div className="register-link">
-          ¿No tienes una cuenta? <Link to="/registro">Regístrate aquí</Link>
+          ¿No tienes una cuenta? <Link href="/registro">Regístrate aquí</Link>
         </div>
         
         <div className="social-login">

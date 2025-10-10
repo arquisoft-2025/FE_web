@@ -2,7 +2,7 @@ import { useCallback } from "react";
 import Particles from "react-tsparticles";
 import { loadSlim } from "tsparticles-slim";
 
-export const ParticlesBackground = () => {
+const ParticlesBackground = () => {
   const particlesInit = useCallback(async engine => {
     await loadSlim(engine);
   }, []);
@@ -81,3 +81,5 @@ export const ParticlesBackground = () => {
     />
   );
 };
+
+export default ParticlesBackground;

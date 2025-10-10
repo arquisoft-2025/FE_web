@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import './ProductRequestModal.css'
+// styles moved to pages/_app.jsx
 
 function ProductRequestModal({ selectedProduct, submitMessage, donorContact, isSubmitting, handleSubmit, closeModal, fetchProducts }) {
     const [copied, setCopied] = useState(false)

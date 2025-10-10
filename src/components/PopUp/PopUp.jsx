@@ -1,6 +1,6 @@
 import PropTypes from "prop-types";
 import { FaTriangleExclamation } from "react-icons/fa6";
-import "./PopUp.css";
+// styles moved to pages/_app.jsx
 
 const PopUp = ({
   show,
