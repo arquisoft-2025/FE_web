@@ -1,0 +1,1 @@
+self.__REACT_LOADABLE_MANIFEST="{\"../src/components/donarPage/DonationFormPage.jsx -> ../loginPage/ParticlesBackground\":{\"id\":\"../src/components/donarPage/DonationFormPage.jsx -> ../loginPage/ParticlesBackground\",\"files\":[\"static/chunks/src_components_loginPage_ParticlesBackground_jsx.js\"]}}"
