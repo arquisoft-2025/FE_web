@@ -5,9 +5,10 @@ import {
   FaSignOutAlt,
   FaUserCircle,
 } from "react-icons/fa";
-const API_URL = import.meta.env.VITE_API_TOKEN;
-import { Link, useNavigate } from "react-router-dom";
-import "./Header.css";
+const API_URL = process.env.NEXT_PUBLIC_VITE_API_TOKEN;
+import Link from 'next/link'
+import { useRouter } from 'next/router'
+// styles moved to pages/_app.jsx
 
 function Header() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -85,6 +86,8 @@ function Header() {
     }
   };
 
+  const router = useRouter()
+
   const handleLogout = () => {
     // Limpiar localStorage y sessionStorage
     localStorage.removeItem("authToken");
@@ -96,7 +99,7 @@ function Header() {
     setUserData(null);
 
     // Opcional: recargar o redireccionar
-    window.location.href = "/"; // Redirige al home
+    router.push('/')
   };
 
   const handleInputChange = (e) => {
@@ -119,7 +122,7 @@ function Header() {
               {isLoggedIn ? (
                 <div className="user-profile">
                   <FaUserCircle className="user-icon" />
-                  <Link to="/dashboard" className="user-profile-link">                   
+                  <Link href="/dashboard" className="user-profile-link">                    
                     <span>{userData?.name || "Mi Cuenta"}</span>
                   </Link>
                   <button onClick={handleLogout} className="logout-btn">

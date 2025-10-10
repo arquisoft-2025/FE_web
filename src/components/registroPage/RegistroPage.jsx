@@ -1,8 +1,10 @@
 import React, { useState } from "react";
 import { FaUserPlus, FaArrowLeft, FaLock, FaEnvelope, FaUser } from "react-icons/fa";
-import { Link, useNavigate } from "react-router-dom";
-import "./RegistroPage.css"; 
-import { ParticlesBackground } from "../loginPage/ParticlesBackground";
+import Link from 'next/link'
+import { useRouter } from 'next/router'
+import dynamic from 'next/dynamic'
+// styles moved to pages/_app.jsx
+const ParticlesBackground = dynamic(() => import('../loginPage/ParticlesBackground'), { ssr: false });
 
 function RegistroPage() {
   const [formData, setFormData] = useState({
@@ -13,7 +15,7 @@ function RegistroPage() {
   });
   const [errors, setErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const navigate = useNavigate();
+  const router = useRouter();
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -58,9 +60,9 @@ function RegistroPage() {
       setErrors({});
       
       try {
-        const apiBase = import.meta.env.VITE_API_TOKEN;
+        const apiBase = process.env.NEXT_PUBLIC_VITE_API_TOKEN;
         if (!apiBase) {
-          throw new Error("Variable VITE_API_TOKEN no configurada");
+          throw new Error("Variable VITE_API_TOKEN no configurada (define NEXT_PUBLIC_VITE_API_TOKEN en .env.local)");
         }
         const response = await fetch(`${apiBase}/register`, {
           method: 'POST',
@@ -72,21 +74,31 @@ function RegistroPage() {
           }),
         });
 
-
-        const data = await response.json();       
+        // Network-level failures will throw before here; wrap to present better message
+        let data = null;
+        try {
+          data = await response.json();
+        } catch (parseErr) {
+          // Response is not JSON
+          throw new Error(`Registro fallido: respuesta inesperada del servidor (status ${response.status})`);
+        }
 
         if (!response.ok) {
-          
-          if (data.mensaje === 'Este email ya esta registrado') {
+          if (data?.mensaje === 'Este email ya esta registrado' || data?.error?.includes('registrado')) {
             throw new Error('Este email ya está registrado');
           } else {
-            throw new Error(data.mensaje || 'Error en el registro');
+            throw new Error(data?.mensaje || data?.error || 'Error en el registro');
           }
-
         }
-        navigate("/login", { state: { registrationSuccess: true, email: formData.email } });
+
+        router.push({ pathname: '/login', query: { registrationSuccess: 'true', email: formData.email } });
       } catch (error) {
-        setErrors({ submit: error.message || "Error al registrar. Inténtalo nuevamente." });
+        // Differentiate network errors from API errors
+        if (error instanceof TypeError && error.message === 'Failed to fetch') {
+          setErrors({ submit: 'No se pudo conectar con el servicio de usuarios. ¿Está el backend ejecutándose en http://127.0.0.1:5002 ?' });
+        } else {
+          setErrors({ submit: error.message || "Error al registrar. Inténtalo nuevamente." });
+        }
       } finally {
         setIsSubmitting(false);
       }
@@ -97,7 +109,7 @@ function RegistroPage() {
     <div className="registro-container">
         <ParticlesBackground />
       <div className="registro-card">
-        <Link to="/" className="back-button">
+        <Link href="/" className="back-button">
           <FaArrowLeft /> Volver al inicio
         </Link>
         
@@ -184,7 +196,7 @@ function RegistroPage() {
         </form>
         
         <div className="login-link">
-          ¿Ya tienes una cuenta? <Link to="/login">Inicia sesión</Link>
+          ¿Ya tienes una cuenta? <Link href="/login">Inicia sesión</Link>
         </div>
       </div>
     </div>

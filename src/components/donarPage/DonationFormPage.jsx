@@ -10,12 +10,13 @@ import {
   FaPlug,
   FaExclamationCircle,
 } from "react-icons/fa";
-import { useNavigate } from "react-router-dom";
-import "./DonationFormPage.css";
-import { ParticlesBackground } from "../loginPage/ParticlesBackground";
+import { useRouter } from 'next/router'
+// styles moved to pages/_app.jsx
+import dynamic from 'next/dynamic'
+const ParticlesBackground = dynamic(() => import('../loginPage/ParticlesBackground'), { ssr: false })
 
 function DonationFormPage() {
-  const navigate = useNavigate();
+  const router = useRouter();
   const [successMessage, setSuccessMessage] = useState("");
   const [formData, setFormData] = useState({
     title: "",
@@ -58,7 +59,7 @@ function DonationFormPage() {
     const token =
       localStorage.getItem("authToken") || sessionStorage.getItem("authToken");
     if (!token) {
-      navigate("/login", { state: { from: "/donar" } });
+      router.push("/login");
     }
 
     const storedUserData =
@@ -124,7 +125,7 @@ function DonationFormPage() {
     formDataToSend.append("name", donationData.name);
     formDataToSend.append("email", donationData.email);
 
-    const apiUrl = import.meta.env.VITE_API_BASE_URL?.replace(/\/$/, "");
+  const apiUrl = process.env.NEXT_PUBLIC_VITE_API_BASE_URL?.replace(/\/$/, "");
     
     // ✅ USAR ENDPOINT REST PARA CREAR DONACIONES
     const response = await fetch(`${apiUrl}/api/donations`, {
@@ -159,7 +160,7 @@ function DonationFormPage() {
       setSuccessMessage("🎉 ¡Donación publicada exitosamente!");
       setTimeout(() => {
         setSuccessMessage("");
-        navigate("/dashboard");
+        router.push("/dashboard");
       }, 2500);
     } catch (error) {
       console.error("Error:", error);
@@ -337,7 +338,7 @@ function DonationFormPage() {
             <button
               type="button"
               className="back-button"
-              onClick={() => navigate(-1)}
+              onClick={() => router.back()}
             >
               ⬅️ Volver
             </button>
@@ -482,7 +483,7 @@ function DonationFormPage() {
       formDataToSend.append("name", formData.name);
       formDataToSend.append("email", formData.email);
 
-      const apiUrl = import.meta.env.VITE_API_BASE_URL?.replace(/\/$/, "");
+  const apiUrl = process.env.NEXT_PUBLIC_VITE_API_BASE_URL?.replace(/\/$/, "");
       const response = await fetch(`${apiUrl}/api/donations`, {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` },

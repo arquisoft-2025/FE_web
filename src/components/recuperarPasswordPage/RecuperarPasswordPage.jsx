@@ -1,8 +1,10 @@
 import React, { useState } from "react";
 import { FaKey, FaArrowLeft, FaEnvelope, FaCheckCircle } from "react-icons/fa";
-import { Link, useNavigate } from "react-router-dom";
+import Link from 'next/link'
+import { useRouter } from 'next/router'
 import "./RecuperarPasswordPage.css"; 
-import { ParticlesBackground } from "../loginPage/ParticlesBackground";
+import dynamic from 'next/dynamic'
+const ParticlesBackground = dynamic(() => import('../loginPage/ParticlesBackground'), { ssr: false })
 
 function RecuperarPasswordPage() {
   const [email, setEmail] = useState("");
@@ -10,7 +12,7 @@ function RecuperarPasswordPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [emailSent, setEmailSent] = useState(false);
   const [message, setMessage] = useState("");
-  const navigate = useNavigate();
+  const router = useRouter();
 
   const validateForm = () => {
     const newErrors = {};
@@ -32,7 +34,7 @@ function RecuperarPasswordPage() {
       setIsSubmitting(true);
       
       try {
-        const response = await fetch(`${import.meta.env.VITE_API_TOKEN}/recover`, {
+  const response = await fetch(`${process.env.NEXT_PUBLIC_VITE_API_TOKEN}/recover`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -79,7 +81,7 @@ function RecuperarPasswordPage() {
               {message} Si no encuentras el correo, revisa tu carpeta de spam.
             </p>
             <div className="success-actions">
-              <Link to="/login" className="back-to-login">
+              <Link href="/login" className="back-to-login">
                 Volver al inicio de sesión
               </Link>
             </div>
@@ -93,7 +95,7 @@ function RecuperarPasswordPage() {
     <div className="password-container">
         <ParticlesBackground /> 
       <div className="password-card">
-        <Link to="/login" className="back-button">
+        <Link href="/login" className="back-button">
           <FaArrowLeft /> Volver al login
         </Link>
         
@@ -133,7 +135,7 @@ function RecuperarPasswordPage() {
         </form>
         
         <div className="password-footer">
-          <p>¿No tienes una cuenta? <Link to="/registro">Regístrate aquí</Link></p>
+          <p>¿No tienes una cuenta? <Link href="/registro">Regístrate aquí</Link></p>
         </div>
       </div>
     </div>

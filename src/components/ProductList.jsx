@@ -1,18 +1,18 @@
 import { useEffect, useState } from 'react';
 import { FaHeart, FaHome, FaShoppingCart, FaUserCircle, FaSignOutAlt } from 'react-icons/fa';
-import { useNavigate, Link } from 'react-router-dom';
+import Link from 'next/link'
+import { useRouter } from 'next/router'
 import Cart from './shopping_cart/cart';
 import useCart from './shopping_cart/useCart';
 import ProductCard from './ProductCard';
-import './ProductList.css';
-import './DonationPage.css';
+// styles moved to pages/_app.jsx (Next.js requires global css only there)
 
 const categories = ['Todos', 'Comida', 'Ropa', 'Medicamentos', 'Útiles escolares', 'Otros'];
 const cities = ['Bogotá', 'Medellín', 'Cali', 'Barranquilla', 'Cartagena', 'Bucaramanga', 'Otra'];
 const conditions = ['Nuevo', 'Usado'];
 
 function ProductList() {
-  const navigate = useNavigate();
+  const router = useRouter();
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedCategory, setSelectedCategory] = useState('Todos');
@@ -51,8 +51,8 @@ function ProductList() {
         handleLogout();
       }
     } else {
-      alert("Inicia sesión para ver los productos disponibles.");
-      navigate("/");
+  alert("Inicia sesión para ver los productos disponibles.");
+  router.push('/');
     }
   }, []);
 
@@ -73,7 +73,7 @@ function ProductList() {
     sessionStorage.removeItem('userData');
     setUserData(null);
     setAuthChecked(false);
-    navigate('/');
+    router.push('/');
   };
 
   // ✅ FUNCIÓN CORREGIDA: Usar GraphQL en lugar de REST
@@ -87,7 +87,7 @@ function ProductList() {
       }
 
       // ✅ CORREGIDO: Query GraphQL para obtener todas las donaciones disponibles
-      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/graphql`, {
+  const response = await fetch(`${process.env.NEXT_PUBLIC_VITE_API_BASE_URL}/graphql`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -162,7 +162,7 @@ function ProductList() {
       // Si hay error de autenticación, redirigir al login
       if (error.message.includes('401') || error.message.includes('token')) {
         alert('Tu sesión ha expirado. Por favor inicia sesión nuevamente.');
-        handleLogout();
+      handleLogout();
       } else {
         alert('Error al cargar los productos. Por favor intenta de nuevo.');
       }
@@ -181,7 +181,7 @@ function ProductList() {
     const token = localStorage.getItem('authToken') || sessionStorage.getItem('authToken');
     if (!token) {
       alert('Por favor inicia sesión para añadir al carrito');
-      navigate('/login');
+      router.push('/login');
       return;
     }
     
@@ -277,7 +277,7 @@ function ProductList() {
                 {userData ? (
                   <div className="user-profile">
                     <FaUserCircle className="user-icon" />
-                    <Link to="/dashboard" className="user-profile-link">
+                    <Link href="/dashboard" className="user-profile-link">
                       <span>{userData.name || "Mi Cuenta"}</span>
                     </Link>
                     <button onClick={handleLogout} className="logout-btn">
@@ -286,7 +286,7 @@ function ProductList() {
                   </div>
                 ) : (
                   <button 
-                    onClick={() => navigate('/login')} 
+                    onClick={() => router.push('/login')} 
                     className="login-btn"
                   >
                     Iniciar sesión
@@ -312,8 +312,8 @@ function ProductList() {
         <div className="hero-container">
           <div className="pl-product-layout">
             <div className="pl-category-panel">
-              <div className="home-button-container">
-                <button onClick={() => navigate('/')} className="home-button">
+                <div className="home-button-container">
+                <button onClick={() => router.push('/')} className="home-button">
                   <FaHome className="home-icon" />
                   <span className="home-text">Inicio</span>
                 </button>
@@ -325,7 +325,7 @@ function ProductList() {
                     const token = localStorage.getItem('authToken') || sessionStorage.getItem('authToken');
                     if (!token) {
                       alert('Por favor inicia sesión para ver tu carrito');
-                      navigate('/login');
+                      router.push('/login');
                       return;
                     }
                     setShowCart(!showCart);
@@ -383,7 +383,7 @@ function ProductList() {
             </div>
 
             <div className="pl-product-panel">
-              {filteredProducts.length === 0 ? (
+                {filteredProducts.length === 0 ? (
                 <div className="no-products">
                   <p>No se encontraron productos con los filtros seleccionados.</p>
                   <button onClick={() => {

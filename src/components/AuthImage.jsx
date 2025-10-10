@@ -22,7 +22,7 @@ const AuthImage = ({ filename, alt, ...props }) => {
       if (!token) return;
       
       try {
-        const response = await fetch(`${import.meta.env.VITE_API_BASE_URL_IMAGE}/proxy-image/${filename}`, {
+  const response = await fetch(`${process.env.NEXT_PUBLIC_VITE_API_BASE_URL_IMAGE}/proxy-image/${filename}`, {
           headers: {
             'Authorization': `Bearer ${token}`
           }

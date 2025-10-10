@@ -1,22 +1,20 @@
 import React, { useState, useEffect } from "react";
 import PropTypes from "prop-types";
 import { FaHandsHelping, FaDonate, FaBoxOpen, FaMedkit, FaTshirt, FaHeart } from "react-icons/fa";
-import { useNavigate } from 'react-router-dom';
-import "./DonationPage.css";
+import { useRouter } from 'next/router'
+// styles moved to pages/_app.jsx
 import Header from "./header/Header";
 
 function DonacionPage() {
-  const navigate = useNavigate();
+  const router = useRouter();
 
   const handleDonarClick = () => {
     const token = localStorage.getItem('authToken') || sessionStorage.getItem('authToken');
     if (token) {
-      // Usuario logueado - redirigir al dashboard
       console.log("token:", token);
-      navigate('/dashboard');
+      router.push('/dashboard')
     } else {
-      // Usuario no logueado - redirigir al login
-      navigate('/login', { state: { from: '/donacion' } });
+      router.push('/login')
     }
   };
 
@@ -46,7 +44,7 @@ function DonacionPage() {
 }
 
 const DonationHero = ({ onDonarClick }) => {
-  const navigate = useNavigate();
+  const router = useRouter();
   
   return (
     <div className="hero-container">
@@ -99,7 +97,7 @@ const DonationHero = ({ onDonarClick }) => {
             </button>
 
             <button 
-              onClick={() => navigate('/donaciones')}
+              onClick={() => router.push('/donaciones')}
               className="donate-button secondary"
             >
               <FaBoxOpen className="button-icon" />

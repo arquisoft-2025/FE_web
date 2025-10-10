@@ -1,0 +1,14 @@
+{
+  "../src/components/loginPage/LoginPage.jsx -> ./ParticlesBackground": {
+    "id": "../src/components/loginPage/LoginPage.jsx -> ./ParticlesBackground",
+    "files": [
+      "static/chunks/src_components_loginPage_ParticlesBackground_jsx.js"
+    ]
+  },
+  "../src/components/registroPage/RegistroPage.jsx -> ../loginPage/ParticlesBackground": {
+    "id": "../src/components/registroPage/RegistroPage.jsx -> ../loginPage/ParticlesBackground",
+    "files": [
+      "static/chunks/src_components_loginPage_ParticlesBackground_jsx.js"
+    ]
+  }
+}
