@@ -1,0 +1,1 @@
+{"c":["webpack"],"r":["pages/registro"],"m":["./node_modules/next/dist/build/webpack/loaders/next-client-pages-loader.js?absolutePagePath=%2Fapp%2Fpages%2Fregistro.jsx&page=%2Fregistro!","./pages/registro.jsx","./src/components/registroPage/RegistroPage.jsx","__barrel_optimize__?names=FaArrowLeft,FaEnvelope,FaLock,FaUser,FaUserPlus!=!./node_modules/react-icons/fa/index.mjs"]}

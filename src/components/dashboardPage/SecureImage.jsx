@@ -11,7 +11,7 @@ function SecureImage({ imageUrl, alt, className }) {
     const fetchImage = async () => {
       try {
         const response = await fetch(
-          `${import.meta.env.VITE_API_BASE_URL}${imageUrl}`,
+          `${process.env.NEXT_PUBLIC_VITE_API_BASE_URL}${imageUrl}`,
           {
             headers: {
               Authorization: `Bearer ${token}`,
