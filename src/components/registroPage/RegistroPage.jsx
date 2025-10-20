@@ -89,7 +89,6 @@ function RegistroPage() {
           } else {
             throw new Error(data?.mensaje || data?.error || 'Error en el registro');
           }
-        }
 
         router.push({ pathname: '/login', query: { registrationSuccess: 'true', email: formData.email } });
       } catch (error) {
