@@ -1,12 +1,14 @@
-version: '3.8'
-
 services:
-  # Production service
+  # Frontend web (production)
   app:
     build:
       context: .
       dockerfile: Dockerfile
       target: production
+      args:
+        # Browser must access localhost:8080 (host->container port mapping)
+        VITE_API_BASE_URL: "http://localhost:8080/api/v1/donations"
+        VITE_API_TOKEN: "http://localhost:8080/api/v1/users"
     ports:
       - "80:80"
     restart: unless-stopped
@@ -14,9 +16,15 @@ services:
       - .env
     environment:
       - NODE_ENV=production
-      # Override for container networking if needed
-      # - VITE_API_BASE_URL=http://host.docker.internal:5000
-      # - VITE_API_TOKEN=http://host.docker.internal:5002
+      # These are not used by the built bundle; build-time args above are used.
+      # Kept here for dev reference only.
+      - VITE_API_BASE_URL=http://localhost:8080/api/v1/donations
+      - VITE_API_TOKEN=http://localhost:8080/api/v1/users
+    depends_on:
+      api-gateway:
+        condition: service_healthy
+    networks:
+      - app-network
 
   # Development service (optional)
   app-dev:
@@ -32,8 +40,306 @@ services:
       - .env
     environment:
       - NODE_ENV=development
-      # For development, you might want to use host networking
-      # - VITE_API_BASE_URL=http://host.docker.internal:5000
-      # - VITE_API_TOKEN=http://host.docker.internal:5002
+      - VITE_API_BASE_URL=http://localhost:8080/api/v1/donations
+      - VITE_API_TOKEN=http://localhost:8080/api/v1/users
+    depends_on:
+      - api-gateway
+    networks:
+      - app-network
     profiles:
       - dev
+
+  # API Gateway (Go Fiber)
+  api-gateway:
+    build:
+      context: ../Api_Gateway
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    environment:
+      - PORT=8080
+      - SERVICE_USER_URL=http://user_management_api:5002
+      - SERVICE_DONATION_URL=http://donation-api:5000
+      - SERVICE_CART_URL=http://shopping-cart-api:5003
+      - SERVICE_NOTIFICATION_URL=http://notification-api:5001
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    depends_on:
+      donation-api:
+        condition: service_healthy
+      user_management_api:
+        condition: service_started
+      shopping-cart-api:
+        condition: service_started
+      notification-api:
+        condition: service_started
+    networks:
+      - app-network
+
+  # Donation API (Flask + Mongo + Redis)
+  donation-api:
+    build:
+      context: ../BE_Donation
+      dockerfile: Dockerfile
+    container_name: donation-api
+    ports:
+      - "5000:5000"
+    environment:
+      - FLASK_ENV=production
+      - JWT_SECRET_KEY=lkhjap8gy2p_03kt
+      - MONGO_URI=mongodb://mongo:27017/donationsdb
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+    volumes:
+      - ../BE_Donation/uploads:/app/uploads
+    depends_on:
+      mongo:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:5000/graphql"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    networks:
+      - app-network
+
+  # Notification API (Flask)
+  notification-api:
+    build:
+      context: ../BE_notification
+      dockerfile: Dockerfile
+    ports:
+      - "5001:5001"
+    environment:
+      - API_BASE_URL=http://donation-api:5000
+      - JWT_SECRET_KEY=lkhjap8gy2p_03kt
+      - INTERNAL_SERVICE_KEY=${INTERNAL_SERVICE_KEY:-internal-key}
+      - MAIL_USERNAME=${MAIL_USERNAME}
+      - MAIL_PASSWORD=${MAIL_PASSWORD}
+      - MAIL_SERVER=${MAIL_SERVER:-smtp.gmail.com}
+      - MAIL_PORT=${MAIL_PORT:-587}
+      - MAILJET_API_KEY_PUBLIC=${MAILJET_API_KEY_PUBLIC}
+      - MAILJET_API_KEY_PRIVATE=${MAILJET_API_KEY_PRIVATE}
+      - MAIL_SENDER=${MAIL_SENDER}
+    networks:
+      - app-network
+
+  # Notification broker API (enqueue service)
+  notification-broker-api:
+    build:
+      context: ../Notification-asynchrony
+      dockerfile: Dockerfile
+    container_name: notification-broker-api
+    command: ["python", "enqueue_api.py"]
+    environment:
+      - RABBIT_HOST=rabbitmq
+      - RABBIT_PORT=5672
+      - RABBIT_USER=guest
+      - RABBIT_PASS=guest
+      - NOTIFICATION_QUEUE=notification_queue
+      - ENQUEUE_PORT=5002
+    depends_on:
+      rabbitmq:
+        condition: service_started
+    networks:
+      - app-network
+
+  # Shopping Cart API (Flask + Mongo)
+  shopping-cart-api:
+    build:
+      context: ../BE_Shopping_cart
+      dockerfile: Dockerfile
+    ports:
+      - "5003:5003"
+    environment:
+      - MONGO_URI=mongodb://mongo:27017/shopping_cart_db
+      - JWT_SECRET_KEY=lkhjap8gy2p_03kt
+      - DONATION_API_URL=http://donation-api:5000
+      - NOTIFICATION_API_URL=http://notification-api:5001
+      - NOTIFICATION_BROKER_URL=http://notification-broker-api:5002
+    depends_on:
+      mongo:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:5003/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    networks:
+      - app-network
+
+  # User Management API (Flask + MySQL)
+  user_management_api:
+    build:
+      context: ../BE_User_Management
+      dockerfile: Dockerfile
+    ports:
+      - "5002:5002"
+    environment:
+      - MYSQL_HOST=mysql
+      - MYSQL_PORT=3306
+      - MYSQL_DATABASE=user_management
+      - MYSQL_USER=root
+      - MYSQL_PASSWORD=root
+      - JWT_SECRET_KEY=lkhjap8gy2p_03kt
+      - FLASK_ENV=production
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - app-network
+
+  # Celery worker for async notifications
+  notification-worker:
+    build:
+      context: ../Notification-asynchrony
+      dockerfile: Dockerfile
+    environment:
+      - CELERY_BROKER_URL=amqp://guest:guest@rabbitmq:5672//
+      - CELERY_RESULT_BACKEND=redis://redis:6379/1
+      - NOTIFICATION_API_URL=http://notification-api:5001
+      - API_BASE_URL=http://donation-api:5000
+      # Optionally set mail creds via env or .env file
+      - MAIL_USERNAME=${MAIL_USERNAME}
+      - MAIL_PASSWORD=${MAIL_PASSWORD}
+      - MAIL_SERVER=${MAIL_SERVER:-smtp.gmail.com}
+      - MAIL_PORT=${MAIL_PORT:-587}
+      - MAILJET_API_KEY_PUBLIC=${MAILJET_API_KEY_PUBLIC}
+      - MAILJET_API_KEY_PRIVATE=${MAILJET_API_KEY_PRIVATE}
+      - MAIL_SENDER=${MAIL_SENDER}
+    depends_on:
+      redis:
+        condition: service_started
+      notification-api:
+        condition: service_started
+    networks:
+      - app-network
+
+  # Redis consumer that pops notifications from the queue and forwards to the Notification API
+  notification-consumer:
+    build:
+      context: ../BE_notification
+      dockerfile: Dockerfile
+    container_name: notification-consumer
+    command: ["python", "redis_consumer.py"]
+    environment:
+      - RABBIT_HOST=rabbitmq
+      - RABBIT_PORT=5672
+      - RABBIT_USER=guest
+      - RABBIT_PASS=guest
+      - NOTIFICATION_QUEUE=notification_queue
+      - LOCAL_NOTIFICATION_URL=http://notification-api:5001/internal/sendNotification
+      - INTERNAL_SERVICE_KEY=${INTERNAL_SERVICE_KEY:-internal-key}
+      - API_BASE_URL=http://donation-api:5000
+      - JWT_SECRET_KEY=lkhjap8gy2p_03kt
+      # - MAIL_USERNAME=${MAIL_USERNAME}
+      # - MAIL_PASSWORD=${MAIL_PASSWORD}
+      # - MAIL_SERVER=${MAIL_SERVER:-smtp.gmail.com}
+      # - MAIL_PORT=${MAIL_PORT:-587}
+      - MAILJET_API_KEY_PUBLIC=${MAILJET_API_KEY_PUBLIC}
+      - MAILJET_API_KEY_PRIVATE=${MAILJET_API_KEY_PRIVATE}
+      - MAIL_SENDER=${MAIL_SENDER}
+    depends_on:
+      redis:
+        condition: service_started
+      notification-api:
+        condition: service_started
+    networks:
+      - app-network
+
+  # FE Mobile (Expo dev server)
+  fe-mobile:
+    build:
+      context: ../FE_Mobile
+      dockerfile: Dockerfile
+    ports:
+      - "19000:19000"
+      - "19001:19001"
+      - "19002:19002"
+    # IMPORTANT: The app runs on your phone/emulator; it must reach your host (not Docker network).
+    # Configure FE_Mobile/.env with your HOST LAN IP, e.g. http://192.168.1.10:8080
+    env_file:
+      - ../FE_Mobile/.env
+    volumes:
+      - ../FE_Mobile:/app
+      - /app/node_modules
+    networks:
+      - app-network
+
+  # Databases and cache
+  mongo:
+    image: mongo:latest
+    container_name: donation-mongo
+    restart: always
+    ports:
+      - "27017:27017"
+    environment:
+      - MONGO_INITDB_DATABASE=donationsdb
+    volumes:
+      - mongo_data:/data/db
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 10s
+      retries: 5
+      start_period: 40s
+
+  mysql:
+    image: mysql:8.0
+    container_name: user_management_mysql
+    restart: unless-stopped
+    ports:
+      - "3306:3306"
+    environment:
+      - MYSQL_ROOT_PASSWORD=root
+      - MYSQL_DATABASE=user_management
+      - MYSQL_USER=user_app
+      - MYSQL_PASSWORD=userpass123
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ../BE_User_Management/init-mysql.sql:/docker-entrypoint-initdb.d/init-mysql.sql:ro
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      timeout: 20s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    container_name: donation-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    networks:
+      - app-network
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: donation-rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      - RABBITMQ_DEFAULT_USER=guest
+      - RABBITMQ_DEFAULT_PASS=guest
+    networks:
+      - app-network
+
+volumes:
+  mongo_data:
+    driver: local
+  mysql_data:
+    driver: local
+
+networks:
+  app-network:
+    driver: bridge

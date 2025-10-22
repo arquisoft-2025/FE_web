@@ -251,7 +251,7 @@ const handleDeleteDonation = async (donationId) => {
                 {donation.image_url && (
                   <div className="donation-image">
                     <SecureImage
-                      imageUrl={`/api${donation.image_url}`}
+                      imageUrl={`${donation.image_url}`}
                       alt={donation.title}
                       className="donation-thumbnail"
                     />

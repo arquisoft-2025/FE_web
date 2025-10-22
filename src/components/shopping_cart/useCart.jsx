@@ -13,9 +13,11 @@ const useCart = () => {
     };
   };
 
+  const baseGateway = (import.meta.env.VITE_API_BASE_URL?.replace('/api/v1/donations','') || import.meta.env.VITE_API_BASE_URL?.replace('/api/donations','') || 'http://localhost:8080');
+
   const fetchCart = async () => {
     try {
-      const response = await fetch('http://localhost:5003/cart', {
+      const response = await fetch(`${baseGateway}/api/v1/cart/cart`, {
         method: 'GET',
         headers: getAuthHeader()
       });
@@ -31,7 +33,7 @@ const useCart = () => {
 
   const addToCart = async (product) => {
   try {
-    const response = await fetch('http://localhost:5003/cart', {
+    const response = await fetch(`${baseGateway}/api/v1/cart/cart`, {
       method: 'POST',
       headers: getAuthHeader(),
       body: JSON.stringify({
@@ -55,7 +57,7 @@ const useCart = () => {
 
   const removeFromCart = async (cartItemId) => {
     try {
-      const response = await fetch(`http://localhost:5003/cart/${cartItemId}`, {
+      const response = await fetch(`${baseGateway}/api/v1/cart/cart/${cartItemId}`, {
         method: 'DELETE',
         headers: getAuthHeader()
       });
@@ -69,7 +71,7 @@ const useCart = () => {
   };
   const clearCart = async () => {
   try {
-    const response = await fetch('http://localhost:5003/cart/clear-all', {
+    const response = await fetch(`${baseGateway}/api/v1/cart/cart/clear-all`, {
       method: 'DELETE',
       headers: getAuthHeader()
     });
@@ -91,7 +93,7 @@ const useCart = () => {
       
       for (const item of cart) {
         const response = await fetch(
-          `http://localhost:5003/cart/${item._id}/claim`, 
+          `${baseGateway}/api/v1/cart/cart/${item._id}/claim`, 
           {
             method: 'POST',
             headers: getAuthHeader()

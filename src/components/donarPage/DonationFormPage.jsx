@@ -132,6 +132,8 @@ function DonationFormPage() {
       formDataToSend.append("email", formData.email);
 
       const apiUrl = import.meta.env.VITE_API_BASE_URL?.replace(/\/$/, "");
+      // VITE_API_BASE_URL already points to the donations gateway base: /api/v1/donations
+      // The donation REST blueprint is under /api in BE_Donation, so include /api prefix
       const response = await fetch(`${apiUrl}/api/donations`, {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` },

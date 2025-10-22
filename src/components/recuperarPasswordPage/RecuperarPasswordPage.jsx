@@ -32,7 +32,8 @@ function RecuperarPasswordPage() {
       setIsSubmitting(true);
       
       try {
-        const response = await fetch('http://localhost:5002/recover', {
+  const base = import.meta.env.VITE_API_TOKEN || 'http://localhost:8080/api/v1/users';
+  const response = await fetch(`${base}/recover`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',

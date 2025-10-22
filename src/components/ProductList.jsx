@@ -80,7 +80,9 @@ function ProductList() {
     setLoading(true);
     try {
       const token = localStorage.getItem('authToken') || sessionStorage.getItem('authToken');
-      const response = await fetch('http://localhost:5001/filteredDonations', {
+  const apiBase = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api/v1/donations';
+  const base = apiBase.replace('/api/v1/donations','').replace('/api/donations','');
+  const response = await fetch(`${base}/api/v1/notification/filteredDonations`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }

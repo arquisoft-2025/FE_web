@@ -75,14 +75,26 @@ function LoginPage() {
           }),
         });
 
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.message || 'Error en la autenticación');
+        // Intentar leer cuerpo JSON (ok o error)
+        let data = null;
+        try {
+          data = await response.json();
+        } catch (_) {
+          data = null;
         }
 
-        const data = await response.json();
+        if (!response.ok) {
+          const backendMsg = data?.mensaje || data?.error || data?.message;
+          if (response.status === 404) {
+            throw new Error(backendMsg || 'El usuario no existe');
+          }
+          if (response.status === 400) {
+            throw new Error(backendMsg || 'Contraseña incorrecta');
+          }
+          throw new Error(backendMsg || 'Error en la autenticación');
+        }
 
-        console.log("Respuesta de login:", data);
+  console.log("Respuesta de login:", data);
        
 
         // Guardar token y datos de usuario

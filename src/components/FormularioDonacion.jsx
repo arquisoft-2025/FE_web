@@ -62,7 +62,8 @@ function FormularioDonacion({ onVolver }) {
         formData.append("image", data.image[0]);
       }
 
-      const response = await fetch("http://localhost:5000/api/donations", {
+  const base = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api/v1/donations';
+  const response = await fetch(`${base}`, {
         method: "POST",
         body: formData
       });

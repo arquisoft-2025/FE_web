@@ -10,8 +10,14 @@ function SecureImage({ imageUrl, alt, className }) {
 
     const fetchImage = async () => {
       try {
+        // VITE_API_BASE_URL already ends with /api/v1/donations
+        const base = import.meta.env.VITE_API_BASE_URL?.replace(/\/$/, "");
+        // If backend returned "/uploads/xyz.jpg", REST is mounted under /api
+        // so through the gateway we must call: /api/v1/donations/api/uploads/xyz.jpg
+        const needsApiPrefix = imageUrl?.startsWith('/uploads');
+        const path = needsApiPrefix ? `/api${imageUrl}` : imageUrl;
         const response = await fetch(
-          `${import.meta.env.VITE_API_BASE_URL}${imageUrl}`,
+          `${base}${path}`,
           {
             headers: {
               Authorization: `Bearer ${token}`,

@@ -66,24 +66,30 @@ function RegistroPage() {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
+            // El backend acepta tanto "name" como "nombre".
             name: formData.nombre,
             email: formData.email,
             password: formData.password
           }),
         });
 
-
-        const data = await response.json();       
+        // Intentar parsear el cuerpo siempre que sea posible
+        let data = null;
+        try {
+          data = await response.json();
+        } catch (_) {
+          data = null;
+        }
 
         if (!response.ok) {
-          
-          if (data.mensaje === 'Este email ya esta registrado') {
-            throw new Error('Este email ya está registrado');
-          } else {
-            throw new Error(data.mensaje || 'Error en el registro');
+          const backendMsg = data?.mensaje || data?.error || data?.message;
+          // Mensaje claro para casos comunes
+          if (response.status === 400 && (backendMsg?.toLowerCase().includes('registrado') || backendMsg?.toLowerCase().includes('informacion'))) {
+            throw new Error(backendMsg || 'Solicitud inválida');
           }
-
+          throw new Error(backendMsg || 'Error en el registro');
         }
+
         navigate("/login", { state: { registrationSuccess: true, email: formData.email } });
       } catch (error) {
         setErrors({ submit: error.message || "Error al registrar. Inténtalo nuevamente." });
