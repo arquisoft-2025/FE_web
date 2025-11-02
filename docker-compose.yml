@@ -7,8 +7,8 @@ services:
       target: production
       args:
         # Browser must access localhost:8080 (host->container port mapping)
-        VITE_API_BASE_URL: "http://localhost:8080/api/v1/donations"
-        VITE_API_TOKEN: "http://localhost:8080/api/v1/users"
+        VITE_API_BASE_URL: "https://localhost:8080/api/v1/donations"
+        VITE_API_TOKEN: "https://localhost:8080/api/v1/users"
     ports:
       - "80:80"
     restart: unless-stopped
@@ -16,10 +16,11 @@ services:
       - .env
     environment:
       - NODE_ENV=production
+      - NODE_TLS_REJECT_UNAUTHORIZED=0
       # These are not used by the built bundle; build-time args above are used.
       # Kept here for dev reference only.
-      - VITE_API_BASE_URL=http://localhost:8080/api/v1/donations
-      - VITE_API_TOKEN=http://localhost:8080/api/v1/users
+      - VITE_API_BASE_URL=https://localhost:8080/api/v1/donations
+      - VITE_API_TOKEN=https://localhost:8080/api/v1/users
     depends_on:
       api-gateway:
         condition: service_healthy
@@ -40,8 +41,9 @@ services:
       - .env
     environment:
       - NODE_ENV=development
-      - VITE_API_BASE_URL=http://localhost:8080/api/v1/donations
-      - VITE_API_TOKEN=http://localhost:8080/api/v1/users
+      - NODE_TLS_REJECT_UNAUTHORIZED=0
+      - VITE_API_BASE_URL=https://localhost:8080/api/v1/donations
+      - VITE_API_TOKEN=https://localhost:8080/api/v1/users
     depends_on:
       - api-gateway
     networks:
@@ -56,17 +58,23 @@ services:
       dockerfile: Dockerfile
     ports:
       - "8080:8080"
+    volumes:
+      - api-gateway-certs:/app/certs
     environment:
       - PORT=8080
+      - ENABLE_HTTPS=true
+      - CERT_FILE=/app/certs/server.crt
+      - KEY_FILE=/app/certs/server.key
       - SERVICE_USER_URL=http://user_management_api:5002
       - SERVICE_DONATION_URL=http://donation-api:5000
       - SERVICE_CART_URL=http://shopping-cart-api:5003
       - SERVICE_NOTIFICATION_URL=http://notification-api:5001
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost:8080/health"]
+      test: ["CMD", "wget", "--no-check-certificate", "-qO-", "https://localhost:8080/health"]
       interval: 30s
-      timeout: 5s
-      retries: 3
+      timeout: 10s
+      retries: 5
+      start_period: 40s
     depends_on:
       donation-api:
         condition: service_healthy
@@ -338,6 +346,8 @@ volumes:
   mongo_data:
     driver: local
   mysql_data:
+    driver: local
+  api-gateway-certs:
     driver: local
 
 networks:
