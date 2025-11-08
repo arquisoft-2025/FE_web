@@ -51,11 +51,12 @@ services:
     profiles:
       - dev
 
-  # API Gateway (Go Fiber)
+  # API Gateway (Single Instance for FE_Web)
   api-gateway:
     build:
       context: ../Api_Gateway
       dockerfile: Dockerfile
+    container_name: api-gateway
     ports:
       - "8080:8080"
     volumes:
@@ -63,8 +64,6 @@ services:
     environment:
       - PORT=8080
       - ENABLE_HTTPS=true
-      - CERT_FILE=/app/certs/server.crt
-      - KEY_FILE=/app/certs/server.key
       - SERVICE_USER_URL=http://user_management_api:5002
       - SERVICE_DONATION_URL=http://donation-api:5000
       - SERVICE_CART_URL=http://shopping-cart-api:5003
@@ -86,6 +85,134 @@ services:
         condition: service_started
     networks:
       - app-network
+    restart: unless-stopped
+
+  # ========================================
+  # API Gateway Instances for FE_Mobile (Load Balanced)
+  # ========================================
+  
+  # Mobile API Gateway Instance 1 (Primary - Weight 3)
+  mobile-api-gateway-1:
+    build:
+      context: ../Api_Gateway
+      dockerfile: Dockerfile
+    container_name: mobile-api-gateway-1
+    ports:
+      - "8081:8080"
+    volumes:
+      - mobile-api-gateway-1-certs:/app/certs
+    environment:
+      - PORT=8080
+      - ENABLE_HTTPS=false  # Proxy handles HTTPS if needed
+      - SERVICE_USER_URL=http://user_management_api:5002
+      - SERVICE_DONATION_URL=http://donation-api:5000
+      - SERVICE_CART_URL=http://shopping-cart-api:5003
+      - SERVICE_NOTIFICATION_URL=http://notification-api:5001
+      - INSTANCE_ID=mobile-1
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 40s
+    depends_on:
+      donation-api:
+        condition: service_healthy
+      user_management_api:
+        condition: service_started
+      shopping-cart-api:
+        condition: service_started
+      notification-api:
+        condition: service_started
+    networks:
+      - app-network
+    restart: unless-stopped
+    labels:
+      - "load-balancer.weight=3"
+      - "load-balancer.instance=primary"
+      - "service=mobile-gateway"
+
+  # Mobile API Gateway Instance 2 (Secondary - Weight 2)
+  mobile-api-gateway-2:
+    build:
+      context: ../Api_Gateway
+      dockerfile: Dockerfile
+    container_name: mobile-api-gateway-2
+    ports:
+      - "8082:8080"
+    volumes:
+      - mobile-api-gateway-2-certs:/app/certs
+    environment:
+      - PORT=8080
+      - ENABLE_HTTPS=false
+      - SERVICE_USER_URL=http://user_management_api:5002
+      - SERVICE_DONATION_URL=http://donation-api:5000
+      - SERVICE_CART_URL=http://shopping-cart-api:5003
+      - SERVICE_NOTIFICATION_URL=http://notification-api:5001
+      - INSTANCE_ID=mobile-2
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 40s
+    depends_on:
+      donation-api:
+        condition: service_healthy
+      user_management_api:
+        condition: service_started
+      shopping-cart-api:
+        condition: service_started
+      notification-api:
+        condition: service_started
+    networks:
+      - app-network
+    restart: unless-stopped
+    labels:
+      - "load-balancer.weight=2"
+      - "load-balancer.instance=secondary"
+      - "service=mobile-gateway"
+
+  # Mobile API Gateway Instance 3 (Tertiary - Weight 1)
+  mobile-api-gateway-3:
+    build:
+      context: ../Api_Gateway
+      dockerfile: Dockerfile
+    container_name: mobile-api-gateway-3
+    ports:
+      - "8083:8080"
+    volumes:
+      - mobile-api-gateway-3-certs:/app/certs
+    environment:
+      - PORT=8080
+      - ENABLE_HTTPS=false
+      - SERVICE_USER_URL=http://user_management_api:5002
+      - SERVICE_DONATION_URL=http://donation-api:5000
+      - SERVICE_CART_URL=http://shopping-cart-api:5003
+      - SERVICE_NOTIFICATION_URL=http://notification-api:5001
+      - INSTANCE_ID=mobile-3
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 40s
+    depends_on:
+      donation-api:
+        condition: service_healthy
+      user_management_api:
+        condition: service_started
+      shopping-cart-api:
+        condition: service_started
+      notification-api:
+        condition: service_started
+    networks:
+      - app-network
+    restart: unless-stopped
+    labels:
+      - "load-balancer.weight=1"
+      - "load-balancer.instance=tertiary"
+      - "service=mobile-gateway"
 
   # Donation API (Flask + Mongo + Redis)
   donation-api:
@@ -260,24 +387,41 @@ services:
     networks:
       - app-network
 
-  # FE Mobile (Expo dev server)
-  fe-mobile:
+  # Reverse Proxy for FE Mobile (uses same backend as FE Web)
+  reverse-proxy:
     build:
-      context: ../FE_Mobile
+      context: ../Reverse_Proxy
       dockerfile: Dockerfile
+    container_name: mobile-reverse-proxy
     ports:
-      - "19000:19000"
-      - "19001:19001"
-      - "19002:19002"
-    # IMPORTANT: The app runs on your phone/emulator; it must reach your host (not Docker network).
-    # Configure FE_Mobile/.env with your HOST LAN IP, e.g. http://192.168.1.10:8080
-    env_file:
-      - ../FE_Mobile/.env
+      - "9090:80"
+    environment:
+      - TZ=America/Bogota
     volumes:
-      - ../FE_Mobile:/app
-      - /app/node_modules
+      - ../Reverse_Proxy/nginx.conf:/etc/nginx/nginx.conf:ro
+      - reverse-proxy-logs:/var/log/nginx
+    depends_on:
+      mobile-api-gateway-1:
+        condition: service_healthy
+      mobile-api-gateway-2:
+        condition: service_healthy
+      mobile-api-gateway-3:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/proxy/health"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
     networks:
       - app-network
+    labels:
+      - "description=Reverse Proxy with Load Balancer for FE_Mobile"
+      - "service=reverse-proxy"
+      - "load-balancer=enabled"
+      - "load-balancer.algorithm=least_conn"
+      - "load-balancer.instances=3"
 
   # Databases and cache
   mongo:
@@ -304,7 +448,7 @@ services:
     container_name: user_management_mysql
     restart: unless-stopped
     ports:
-      - "3306:3306"
+      - "3307:3306"
     environment:
       - MYSQL_ROOT_PASSWORD=root
       - MYSQL_DATABASE=user_management
@@ -348,6 +492,14 @@ volumes:
   mysql_data:
     driver: local
   api-gateway-certs:
+    driver: local
+  mobile-api-gateway-1-certs:
+    driver: local
+  mobile-api-gateway-2-certs:
+    driver: local
+  mobile-api-gateway-3-certs:
+    driver: local
+  reverse-proxy-logs:
     driver: local
 
 networks:
