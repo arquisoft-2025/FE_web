@@ -6,9 +6,9 @@ services:
       dockerfile: Dockerfile
       target: production
       args:
-        # Browser must access localhost:8080 (host->container port mapping)
-        VITE_API_BASE_URL: "https://localhost:8080/api/v1/donations"
-        VITE_API_TOKEN: "https://localhost:8080/api/v1/users"
+        # Browser must access localhost:8443 through reverse proxy
+        VITE_API_BASE_URL: "https://localhost:8443/api/v1/donations"
+        VITE_API_TOKEN: "https://localhost:8443/api/v1/users"
     ports:
       - "80:80"
     restart: unless-stopped
@@ -19,13 +19,13 @@ services:
       - NODE_TLS_REJECT_UNAUTHORIZED=0
       # These are not used by the built bundle; build-time args above are used.
       # Kept here for dev reference only.
-      - VITE_API_BASE_URL=https://localhost:8080/api/v1/donations
-      - VITE_API_TOKEN=https://localhost:8080/api/v1/users
+      - VITE_API_BASE_URL=https://localhost:8443/api/v1/donations
+      - VITE_API_TOKEN=https://localhost:8443/api/v1/users
     depends_on:
-      api-gateway:
+      web-reverse-proxy:
         condition: service_healthy
     networks:
-      - app-network
+      - frontend-network
 
   # Development service (optional)
   app-dev:
@@ -42,25 +42,69 @@ services:
     environment:
       - NODE_ENV=development
       - NODE_TLS_REJECT_UNAUTHORIZED=0
-      - VITE_API_BASE_URL=https://localhost:8080/api/v1/donations
-      - VITE_API_TOKEN=https://localhost:8080/api/v1/users
+      - VITE_API_BASE_URL=https://localhost:8443/api/v1/donations
+      - VITE_API_TOKEN=https://localhost:8443/api/v1/users
     depends_on:
-      - api-gateway
+      - web-reverse-proxy
     networks:
-      - app-network
+      - frontend-network
     profiles:
       - dev
 
-  # API Gateway (Single Instance for FE_Web)
-  api-gateway:
+  # ========================================
+  # Web Reverse Proxy with Load Balancer
+  # ========================================
+  
+  web-reverse-proxy:
+    build:
+      context: ../FE_Web_Proxy
+      dockerfile: Dockerfile
+    container_name: web-reverse-proxy
+    ports:
+      - "8443:443"
+      - "8444:80"
+    environment:
+      - TZ=America/Bogota
+    volumes:
+      - ../FE_Web_Proxy/nginx.conf:/etc/nginx/nginx.conf:ro
+      - web-reverse-proxy-logs:/var/log/nginx
+    depends_on:
+      web-api-gateway-1:
+        condition: service_healthy
+      web-api-gateway-2:
+        condition: service_healthy
+      web-api-gateway-3:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-fk", "https://localhost/proxy/health"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
+    networks:
+      - frontend-network
+    labels:
+      - "description=Reverse Proxy with Load Balancer for FE_Web"
+      - "service=reverse-proxy"
+      - "load-balancer=enabled"
+      - "load-balancer.algorithm=round_robin"
+      - "load-balancer.instances=3"
+
+  # ========================================
+  # API Gateway Instances for FE_Web (Load Balanced)
+  # ========================================
+  
+  # Web API Gateway Instance 1 (Primary - Weight 3)
+  web-api-gateway-1:
     build:
       context: ../Api_Gateway
       dockerfile: Dockerfile
-    container_name: api-gateway
+    container_name: web-api-gateway-1
     ports:
       - "8080:8080"
     volumes:
-      - api-gateway-certs:/app/certs
+      - web-api-gateway-1-certs:/app/certs
     environment:
       - PORT=8080
       - ENABLE_HTTPS=true
@@ -68,6 +112,7 @@ services:
       - SERVICE_DONATION_URL=http://donation-api:5000
       - SERVICE_CART_URL=http://shopping-cart-api:5003
       - SERVICE_NOTIFICATION_URL=http://notification-api:5001
+      - INSTANCE_ID=web-1
     healthcheck:
       test: ["CMD", "wget", "--no-check-certificate", "-qO-", "https://localhost:8080/health"]
       interval: 30s
@@ -84,11 +129,100 @@ services:
       notification-api:
         condition: service_started
     networks:
-      - app-network
+      - frontend-network
+      - backend-network
     restart: unless-stopped
+    labels:
+      - "load-balancer.weight=3"
+      - "load-balancer.instance=primary"
+      - "service=web-gateway"
+
+  # Web API Gateway Instance 2 (Secondary - Weight 2)
+  web-api-gateway-2:
+    build:
+      context: ../Api_Gateway
+      dockerfile: Dockerfile
+    container_name: web-api-gateway-2
+    ports:
+      - "8084:8080"
+    volumes:
+      - web-api-gateway-2-certs:/app/certs
+    environment:
+      - PORT=8080
+      - ENABLE_HTTPS=true
+      - SERVICE_USER_URL=http://user_management_api:5002
+      - SERVICE_DONATION_URL=http://donation-api:5000
+      - SERVICE_CART_URL=http://shopping-cart-api:5003
+      - SERVICE_NOTIFICATION_URL=http://notification-api:5001
+      - INSTANCE_ID=web-2
+    healthcheck:
+      test: ["CMD", "wget", "--no-check-certificate", "-qO-", "https://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 40s
+    depends_on:
+      donation-api:
+        condition: service_healthy
+      user_management_api:
+        condition: service_started
+      shopping-cart-api:
+        condition: service_started
+      notification-api:
+        condition: service_started
+    networks:
+      - frontend-network
+      - backend-network
+    restart: unless-stopped
+    labels:
+      - "load-balancer.weight=2"
+      - "load-balancer.instance=secondary"
+      - "service=web-gateway"
+
+  # Web API Gateway Instance 3 (Tertiary - Weight 1)
+  web-api-gateway-3:
+    build:
+      context: ../Api_Gateway
+      dockerfile: Dockerfile
+    container_name: web-api-gateway-3
+    ports:
+      - "8085:8080"
+    volumes:
+      - web-api-gateway-3-certs:/app/certs
+    environment:
+      - PORT=8080
+      - ENABLE_HTTPS=true
+      - SERVICE_USER_URL=http://user_management_api:5002
+      - SERVICE_DONATION_URL=http://donation-api:5000
+      - SERVICE_CART_URL=http://shopping-cart-api:5003
+      - SERVICE_NOTIFICATION_URL=http://notification-api:5001
+      - INSTANCE_ID=web-3
+    healthcheck:
+      test: ["CMD", "wget", "--no-check-certificate", "-qO-", "https://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 40s
+    depends_on:
+      donation-api:
+        condition: service_healthy
+      user_management_api:
+        condition: service_started
+      shopping-cart-api:
+        condition: service_started
+      notification-api:
+        condition: service_started
+    networks:
+      - frontend-network
+      - backend-network
+    restart: unless-stopped
+    labels:
+      - "load-balancer.weight=1"
+      - "load-balancer.instance=tertiary"
+      - "service=web-gateway"
 
   # ========================================
-  # API Gateway Instances for FE_Mobile (Load Balanced)
+  # API Gateway Instances for FE_Mobile (Load Balanced with Segmented Networks)
   # ========================================
   
   # Mobile API Gateway Instance 1 (Primary - Weight 3)
@@ -103,7 +237,7 @@ services:
       - mobile-api-gateway-1-certs:/app/certs
     environment:
       - PORT=8080
-      - ENABLE_HTTPS=false  # Proxy handles HTTPS if needed
+      - ENABLE_HTTPS=false
       - SERVICE_USER_URL=http://user_management_api:5002
       - SERVICE_DONATION_URL=http://donation-api:5000
       - SERVICE_CART_URL=http://shopping-cart-api:5003
@@ -125,7 +259,8 @@ services:
       notification-api:
         condition: service_started
     networks:
-      - app-network
+      - mobile-frontend-network
+      - mobile-backend-network
     restart: unless-stopped
     labels:
       - "load-balancer.weight=3"
@@ -166,7 +301,8 @@ services:
       notification-api:
         condition: service_started
     networks:
-      - app-network
+      - mobile-frontend-network
+      - mobile-backend-network
     restart: unless-stopped
     labels:
       - "load-balancer.weight=2"
@@ -207,7 +343,8 @@ services:
       notification-api:
         condition: service_started
     networks:
-      - app-network
+      - mobile-frontend-network
+      - mobile-backend-network
     restart: unless-stopped
     labels:
       - "load-balancer.weight=1"
@@ -242,6 +379,10 @@ services:
       retries: 3
     networks:
       - app-network
+      - backend-network
+      - web-database-network
+      - mobile-backend-network
+      - mobile-database-network
 
   # Notification API (Flask)
   notification-api:
@@ -263,6 +404,8 @@ services:
       - MAIL_SENDER=${MAIL_SENDER}
     networks:
       - app-network
+      - backend-network
+      - mobile-backend-network
 
   # Notification broker API (enqueue service)
   notification-broker-api:
@@ -283,6 +426,10 @@ services:
         condition: service_started
     networks:
       - app-network
+      - backend-network
+      - web-messaging-network
+      - mobile-backend-network
+      - mobile-messaging-network
 
   # Shopping Cart API (Flask + Mongo)
   shopping-cart-api:
@@ -307,6 +454,10 @@ services:
       retries: 3
     networks:
       - app-network
+      - backend-network
+      - web-database-network
+      - mobile-backend-network
+      - mobile-database-network
 
   # User Management API (Flask + MySQL)
   user_management_api:
@@ -328,6 +479,10 @@ services:
         condition: service_healthy
     networks:
       - app-network
+      - backend-network
+      - web-database-network
+      - mobile-backend-network
+      - mobile-database-network
 
   # Celery worker for async notifications
   notification-worker:
@@ -354,6 +509,11 @@ services:
         condition: service_started
     networks:
       - app-network
+      - backend-network
+      - web-messaging-network
+      - web-database-network
+      - mobile-backend-network
+      - mobile-messaging-network
 
   # Redis consumer that pops notifications from the queue and forwards to the Notification API
   notification-consumer:
@@ -386,6 +546,11 @@ services:
         condition: service_started
     networks:
       - app-network
+      - backend-network
+      - web-messaging-network
+      - web-database-network
+      - mobile-backend-network
+      - mobile-messaging-network
 
   # Reverse Proxy for FE Mobile (uses same backend as FE Web)
   reverse-proxy:
@@ -415,12 +580,12 @@ services:
       start_period: 10s
     restart: unless-stopped
     networks:
-      - app-network
+      - mobile-frontend-network
     labels:
       - "description=Reverse Proxy with Load Balancer for FE_Mobile"
       - "service=reverse-proxy"
       - "load-balancer=enabled"
-      - "load-balancer.algorithm=least_conn"
+      - "load-balancer.algorithm=round_robin"
       - "load-balancer.instances=3"
 
   # Databases and cache
@@ -436,6 +601,8 @@ services:
       - mongo_data:/data/db
     networks:
       - app-network
+      - web-database-network
+      - mobile-database-network
     healthcheck:
       test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
       interval: 10s
@@ -459,6 +626,8 @@ services:
       - ../BE_User_Management/init-mysql.sql:/docker-entrypoint-initdb.d/init-mysql.sql:ro
     networks:
       - app-network
+      - web-database-network
+      - mobile-database-network
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
       timeout: 20s
@@ -472,6 +641,8 @@ services:
       - "6379:6379"
     networks:
       - app-network
+      - web-database-network
+      - mobile-database-network
     command: ["redis-server", "--save", "", "--appendonly", "no"]
 
   rabbitmq:
@@ -485,6 +656,8 @@ services:
       - RABBITMQ_DEFAULT_PASS=guest
     networks:
       - app-network
+      - web-messaging-network
+      - mobile-messaging-network
 
 volumes:
   mongo_data:
@@ -499,9 +672,49 @@ volumes:
     driver: local
   mobile-api-gateway-3-certs:
     driver: local
+  web-api-gateway-1-certs:
+    driver: local
+  web-api-gateway-2-certs:
+    driver: local
+  web-api-gateway-3-certs:
+    driver: local
   reverse-proxy-logs:
+    driver: local
+  web-reverse-proxy-logs:
     driver: local
 
 networks:
   app-network:
     driver: bridge
+  # Web-specific networks for segmentation (4 networks)
+  frontend-network:
+    driver: bridge
+    name: web-frontend-network
+  backend-network:
+    driver: bridge
+    name: web-backend-network
+    internal: true  # No external access
+  web-database-network:
+    driver: bridge
+    name: web-database-network
+    internal: true  # No external access
+  web-messaging-network:
+    driver: bridge
+    name: web-messaging-network
+    internal: true  # No external access
+  # Mobile-specific networks for segmentation (4 networks)
+  mobile-frontend-network:
+    driver: bridge
+    name: mobile-frontend-network
+  mobile-backend-network:
+    driver: bridge
+    name: mobile-backend-network
+    internal: true  # No external access
+  mobile-database-network:
+    driver: bridge
+    name: mobile-database-network
+    internal: true  # No external access
+  mobile-messaging-network:
+    driver: bridge
+    name: mobile-messaging-network
+    internal: true  # No external access
