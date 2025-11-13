@@ -57,7 +57,7 @@ services:
   
   web-reverse-proxy:
     build:
-      context: ../FE_Web_Proxy
+      context: ../Reverse_Proxy_Web
       dockerfile: Dockerfile
     container_name: web-reverse-proxy
     ports:
@@ -66,7 +66,7 @@ services:
     environment:
       - TZ=America/Bogota
     volumes:
-      - ../FE_Web_Proxy/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ../Reverse_Proxy_Web/nginx.conf:/etc/nginx/nginx.conf:ro
       - web-reverse-proxy-logs:/var/log/nginx
     depends_on:
       web-api-gateway-1:
@@ -549,7 +549,7 @@ services:
   # Reverse Proxy for FE Mobile (uses same backend as FE Web)
   reverse-proxy:
     build:
-      context: ../Reverse_Proxy
+      context: ../Reverse_Proxy_Mobile
       dockerfile: Dockerfile
     container_name: mobile-reverse-proxy
     ports:
@@ -557,7 +557,7 @@ services:
     environment:
       - TZ=America/Bogota
     volumes:
-      - ../Reverse_Proxy/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ../Reverse_Proxy_Mobile/nginx.conf:/etc/nginx/nginx.conf:ro
       - reverse-proxy-logs:/var/log/nginx
     depends_on:
       mobile-api-gateway-1:
