@@ -129,7 +129,6 @@ services:
       notification-api:
         condition: service_started
     networks:
-      - frontend-network
       - backend-network
     restart: unless-stopped
     labels:
@@ -171,7 +170,6 @@ services:
       notification-api:
         condition: service_started
     networks:
-      - frontend-network
       - backend-network
     restart: unless-stopped
     labels:
@@ -213,7 +211,6 @@ services:
       notification-api:
         condition: service_started
     networks:
-      - frontend-network
       - backend-network
     restart: unless-stopped
     labels:
@@ -259,7 +256,6 @@ services:
       notification-api:
         condition: service_started
     networks:
-      - mobile-frontend-network
       - mobile-backend-network
     restart: unless-stopped
     labels:
@@ -301,7 +297,6 @@ services:
       notification-api:
         condition: service_started
     networks:
-      - mobile-frontend-network
       - mobile-backend-network
     restart: unless-stopped
     labels:
@@ -343,7 +338,6 @@ services:
       notification-api:
         condition: service_started
     networks:
-      - mobile-frontend-network
       - mobile-backend-network
     restart: unless-stopped
     labels:
